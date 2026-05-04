@@ -61,6 +61,8 @@ Normal workout logging uses the existing debounced autosave and saves only the a
 
 Open the editor from `☰` -> `Edit Current Profile`.
 
+Exercises are collapsed by default so the editor is easier to scan. Tap an exercise row to expand or collapse its full edit form. Use `Reorder`, or long-press an exercise row, to show `Move Up` / `Move Down` controls. Exercise order saves with the active profile when `Save Changes` is tapped.
+
 Editable now:
 
 - Exercise name
@@ -72,6 +74,7 @@ Editable now:
 - Add set
 - Delete set
 - Delete exercise
+- Reorder exercises
 
 Editor changes are saved only when `Save Changes` is tapped. The editor save updates both `original` and `current` structure for the active profile. It attempts to preserve notes, difficulty, and set reps/weights that had already been changed from the previous original plan.
 
@@ -87,7 +90,7 @@ Those controls are intentionally static for now unless already handled by the pr
 
 ## Last Thing Done
 
-Added `Add Exercise` support inside the profile/program editor. New exercises are saved to both `original` and `current` for the active profile.
+Collapsed profile editor exercises by default and added move up/down reorder controls. Reordered exercise order saves with the active profile.
 
 ## Next Step
 

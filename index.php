@@ -883,17 +883,32 @@ $current = $weekData['current'];
     .editor-toolbar {
       display: flex;
       justify-content: flex-end;
+      gap: 8px;
       margin: 0 0 12px;
     }
 
-    .editor-add-exercise {
+    .editor-add-exercise,
+    .editor-reorder-toggle {
       border: 0;
       border-radius: 12px;
-      background: #dcfce7;
-      color: #166534;
       padding: 10px 12px;
       font-weight: 900;
       cursor: pointer;
+    }
+
+    .editor-add-exercise {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .editor-reorder-toggle {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .editor-reorder-toggle.active {
+      background: #bae6fd;
+      color: #075985;
     }
 
     .editor-list {
@@ -910,19 +925,83 @@ $current = $weekData['current'];
       padding: 12px;
     }
 
-    .editor-card-head {
-      display: flex;
-      justify-content: space-between;
+    .editor-summary {
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #0f172a;
+      display: grid;
+      grid-template-columns: 1fr 1.1fr auto;
       gap: 10px;
       align-items: center;
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
     }
 
-    .editor-card-title {
-      font-size: 13px;
+    .editor-card.expanded .editor-summary {
+      background: #e0f2fe;
+    }
+
+    .editor-summary-cell {
+      min-width: 0;
+    }
+
+    .editor-summary-label {
+      color: #64748b;
+      font-size: 10px;
       font-weight: 900;
-      color: #475569;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      margin-bottom: 3px;
+    }
+
+    .editor-summary-value {
+      overflow: hidden;
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .editor-summary-number {
+      color: #475569;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .editor-reorder-controls {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .program-editor.reorder-mode .editor-reorder-controls {
+      display: grid;
+    }
+
+    .editor-move-btn {
+      border: 0;
+      border-radius: 10px;
+      background: #e2e8f0;
+      color: #334155;
+      padding: 8px 10px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .editor-move-btn:disabled {
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    .editor-card-body {
+      display: grid;
+      gap: 12px;
     }
 
     .editor-delete {
@@ -1143,6 +1222,7 @@ $current = $weekData['current'];
         </div>
         <div class="editor-save-status" id="editorSaveStatus"></div>
         <div class="editor-toolbar">
+          <button class="editor-reorder-toggle" id="reorderToggleButton" type="button">Reorder</button>
           <button class="editor-add-exercise" id="addExerciseButton" type="button">Add Exercise</button>
         </div>
         <div class="editor-list" id="editorList"></div>
@@ -1176,12 +1256,17 @@ $current = $weekData['current'];
     const editorList = document.getElementById('editorList');
     const closeEditorButton = document.getElementById('closeEditorButton');
     const saveEditorButton = document.getElementById('saveEditorButton');
+    const reorderToggleButton = document.getElementById('reorderToggleButton');
     const addExerciseButton = document.getElementById('addExerciseButton');
     const editorSaveStatus = document.getElementById('editorSaveStatus');
     let editMode = false;
     let activeNotesButton = null;
     let saveTimer = null;
     let editorDraft = null;
+    let expandedExerciseIndex = null;
+    let reorderMode = false;
+    let longPressTimer = null;
+    let suppressEditorClick = false;
 
     const hasProfileParam = new URLSearchParams(window.location.search).has('profile');
     const storedProfile = localStorage.getItem('activeWorkoutProfile');
@@ -1268,6 +1353,13 @@ $current = $weekData['current'];
       editorSaveStatus.textContent = message;
     }
 
+    function setReorderMode(enabled) {
+      reorderMode = enabled;
+      programEditor.classList.toggle('reorder-mode', reorderMode);
+      reorderToggleButton.classList.toggle('active', reorderMode);
+      reorderToggleButton.textContent = reorderMode ? 'Done Reordering' : 'Reorder';
+    }
+
     function setProfileMenuOpen(open) {
       profileMenu.classList.toggle('open', open);
       profileMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1301,6 +1393,8 @@ $current = $weekData['current'];
       }
       setProfileMenuOpen(false);
       editorDraft = cloneData(workoutData.current.exercises);
+      expandedExerciseIndex = null;
+      setReorderMode(false);
       renderProgramEditor();
       setEditorStatus('');
       programEditor.classList.add('open');
@@ -1311,6 +1405,8 @@ $current = $weekData['current'];
       programEditor.classList.remove('open');
       programEditor.setAttribute('aria-hidden', 'true');
       editorDraft = null;
+      expandedExerciseIndex = null;
+      setReorderMode(false);
     }
 
     function setRowsHtml(sets, exerciseIndex, type) {
@@ -1330,42 +1426,61 @@ $current = $weekData['current'];
     }
 
     function renderProgramEditor() {
-      editorList.innerHTML = editorDraft.map((exercise, exerciseIndex) => `
-        <article class="editor-card" data-exercise-index="${exerciseIndex}">
-          <div class="editor-card-head">
-            <div class="editor-card-title">Exercise ${exerciseIndex + 1}</div>
+      editorList.innerHTML = editorDraft.map((exercise, exerciseIndex) => {
+        const isExpanded = expandedExerciseIndex === exerciseIndex;
+        return `
+        <article class="editor-card${isExpanded ? ' expanded' : ''}" data-exercise-index="${exerciseIndex}">
+          <button class="editor-summary" type="button" data-action="toggle-exercise" data-exercise-index="${exerciseIndex}" aria-expanded="${isExpanded ? 'true' : 'false'}">
+            <span class="editor-summary-cell">
+              <span class="editor-summary-label">Group</span>
+              <span class="editor-summary-value">${escapeHtml(exercise.group || 'General')}</span>
+            </span>
+            <span class="editor-summary-cell">
+              <span class="editor-summary-label">Name</span>
+              <span class="editor-summary-value">${escapeHtml(exercise.name || 'New Exercise')}</span>
+            </span>
+            <span class="editor-summary-number">Exercise ${exerciseIndex + 1}</span>
+          </button>
+          <div class="editor-reorder-controls">
+            <button class="editor-move-btn" type="button" data-action="move-exercise" data-direction="-1" data-exercise-index="${exerciseIndex}"${exerciseIndex === 0 ? ' disabled' : ''}>Move Up</button>
+            <button class="editor-move-btn" type="button" data-action="move-exercise" data-direction="1" data-exercise-index="${exerciseIndex}"${exerciseIndex === editorDraft.length - 1 ? ' disabled' : ''}>Move Down</button>
+          </div>
+          ${isExpanded ? `
+          <div class="editor-card-body">
+            <div class="editor-field-grid">
+              <div class="editor-field">
+                <label>Exercise Name</label>
+                <input type="text" data-field="name" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.name)}">
+              </div>
+              <div class="editor-field">
+                <label>Day</label>
+                <input type="text" data-field="day" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.day)}">
+              </div>
+              <div class="editor-field">
+                <label>Group</label>
+                <input type="text" data-field="group" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.group)}">
+              </div>
+            </div>
+            <div class="editor-set-section">
+              <div class="editor-set-heading">
+                <span>Main Sets</span>
+                <button class="editor-add-set" type="button" data-action="add-set" data-exercise-index="${exerciseIndex}" data-set-type="mainSets">Add Set</button>
+              </div>
+              ${setRowsHtml(exercise.mainSets || [], exerciseIndex, 'mainSets')}
+            </div>
+            <div class="editor-set-section">
+              <div class="editor-set-heading">
+                <span>Warm-up Sets</span>
+                <button class="editor-add-set" type="button" data-action="add-set" data-exercise-index="${exerciseIndex}" data-set-type="warmUpSets">Add Set</button>
+              </div>
+              ${setRowsHtml(exercise.warmUpSets || [], exerciseIndex, 'warmUpSets')}
+            </div>
             <button class="editor-delete" type="button" data-action="delete-exercise" data-exercise-index="${exerciseIndex}">Delete Exercise</button>
           </div>
-          <div class="editor-field-grid">
-            <div class="editor-field">
-              <label>Exercise Name</label>
-              <input type="text" data-field="name" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.name)}">
-            </div>
-            <div class="editor-field">
-              <label>Day</label>
-              <input type="text" data-field="day" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.day)}">
-            </div>
-            <div class="editor-field">
-              <label>Group</label>
-              <input type="text" data-field="group" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.group)}">
-            </div>
-          </div>
-          <div class="editor-set-section">
-            <div class="editor-set-heading">
-              <span>Main Sets</span>
-              <button class="editor-add-set" type="button" data-action="add-set" data-exercise-index="${exerciseIndex}" data-set-type="mainSets">Add Set</button>
-            </div>
-            ${setRowsHtml(exercise.mainSets || [], exerciseIndex, 'mainSets')}
-          </div>
-          <div class="editor-set-section">
-            <div class="editor-set-heading">
-              <span>Warm-up Sets</span>
-              <button class="editor-add-set" type="button" data-action="add-set" data-exercise-index="${exerciseIndex}" data-set-type="warmUpSets">Add Set</button>
-            </div>
-            ${setRowsHtml(exercise.warmUpSets || [], exerciseIndex, 'warmUpSets')}
-          </div>
+          ` : ''}
         </article>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function saveProgramEditor() {
@@ -1395,9 +1510,13 @@ $current = $weekData['current'];
     editProfileButton.addEventListener('click', openProgramEditor);
     closeEditorButton.addEventListener('click', closeProgramEditor);
     saveEditorButton.addEventListener('click', saveProgramEditor);
+    reorderToggleButton.addEventListener('click', () => {
+      setReorderMode(!reorderMode);
+    });
     addExerciseButton.addEventListener('click', () => {
       if (!editorDraft) return;
       editorDraft.push(defaultEditorExercise());
+      expandedExerciseIndex = editorDraft.length - 1;
       renderProgramEditor();
       setEditorStatus('');
 
@@ -1410,6 +1529,30 @@ $current = $weekData['current'];
           nameInput.select();
         }
       }
+    });
+
+    editorList.addEventListener('pointerdown', event => {
+      const summary = event.target.closest('.editor-summary');
+      if (!summary || !editorDraft) return;
+      clearTimeout(longPressTimer);
+      const exerciseIndex = Number(summary.dataset.exerciseIndex);
+      longPressTimer = setTimeout(() => {
+        suppressEditorClick = true;
+        expandedExerciseIndex = null;
+        setReorderMode(true);
+        renderProgramEditor();
+        const card = editorList.querySelector(`[data-exercise-index="${exerciseIndex}"]`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        setTimeout(() => {
+          suppressEditorClick = false;
+        }, 700);
+      }, 550);
+    });
+
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(eventName => {
+      editorList.addEventListener(eventName, () => {
+        clearTimeout(longPressTimer);
+      });
     });
 
     editorList.addEventListener('input', event => {
@@ -1436,8 +1579,39 @@ $current = $weekData['current'];
       const exerciseIndex = Number(button.dataset.exerciseIndex);
       const action = button.dataset.action;
 
+      if (suppressEditorClick) {
+        suppressEditorClick = false;
+        return;
+      }
+
+      if (action === 'toggle-exercise') {
+        expandedExerciseIndex = expandedExerciseIndex === exerciseIndex ? null : exerciseIndex;
+        renderProgramEditor();
+        return;
+      }
+
+      if (action === 'move-exercise') {
+        const direction = Number(button.dataset.direction);
+        const nextIndex = exerciseIndex + direction;
+        if (nextIndex < 0 || nextIndex >= editorDraft.length) return;
+        const moved = editorDraft.splice(exerciseIndex, 1)[0];
+        editorDraft.splice(nextIndex, 0, moved);
+        if (expandedExerciseIndex === exerciseIndex) {
+          expandedExerciseIndex = nextIndex;
+        } else if (expandedExerciseIndex === nextIndex) {
+          expandedExerciseIndex = exerciseIndex;
+        }
+        renderProgramEditor();
+        return;
+      }
+
       if (action === 'delete-exercise') {
         editorDraft.splice(exerciseIndex, 1);
+        if (expandedExerciseIndex === exerciseIndex) {
+          expandedExerciseIndex = null;
+        } else if (expandedExerciseIndex !== null && expandedExerciseIndex > exerciseIndex) {
+          expandedExerciseIndex -= 1;
+        }
         renderProgramEditor();
         return;
       }
