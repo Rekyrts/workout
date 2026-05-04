@@ -1,0 +1,264 @@
+{
+    "original": {
+        "profileName": "Dustin",
+        "weekLabel": "May 4",
+        "dayDateLabel": "Monday",
+        "exercises": [
+            {
+                "name": "Bench Press",
+                "day": "Monday",
+                "group": "Chest / Push",
+                "mainSets": [
+                    {
+                        "reps": 10,
+                        "weight": 135
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 155
+                    },
+                    {
+                        "reps": 6,
+                        "weight": 165
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 45
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 95
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            },
+            {
+                "name": "Lat Pulldown",
+                "day": "Wednesday",
+                "group": "Back / Pull",
+                "mainSets": [
+                    {
+                        "reps": 12,
+                        "weight": 90
+                    },
+                    {
+                        "reps": 10,
+                        "weight": 105
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 120
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 45
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 70
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            },
+            {
+                "name": "Leg Press",
+                "day": "Friday",
+                "group": "Legs",
+                "mainSets": [
+                    {
+                        "reps": 12,
+                        "weight": 180
+                    },
+                    {
+                        "reps": 10,
+                        "weight": 230
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 270
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 90
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 140
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            },
+            {
+                "name": "Arm Curls",
+                "day": "Saturday",
+                "group": "Arms",
+                "mainSets": [
+                    {
+                        "reps": 12,
+                        "weight": 25
+                    },
+                    {
+                        "reps": 10,
+                        "weight": 30
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 35
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 10
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 15
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            }
+        ]
+    },
+    "current": {
+        "profileName": "Dustin",
+        "weekLabel": "May 4",
+        "dayDateLabel": "Monday",
+        "exercises": [
+            {
+                "name": "Bench Press",
+                "day": "Monday",
+                "group": "Chest / Push",
+                "mainSets": [
+                    {
+                        "reps": 10,
+                        "weight": 135
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 155
+                    },
+                    {
+                        "reps": 6,
+                        "weight": 165
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 45
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 95
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            },
+            {
+                "name": "Lat Pulldown",
+                "day": "Wednesday",
+                "group": "Back / Pull",
+                "mainSets": [
+                    {
+                        "reps": 12,
+                        "weight": 90
+                    },
+                    {
+                        "reps": 10,
+                        "weight": 105
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 120
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 45
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 70
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            },
+            {
+                "name": "Leg Press",
+                "day": "Friday",
+                "group": "Legs",
+                "mainSets": [
+                    {
+                        "reps": 12,
+                        "weight": 180
+                    },
+                    {
+                        "reps": 10,
+                        "weight": 230
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 270
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 90
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 140
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            },
+            {
+                "name": "Arm Curls",
+                "day": "Saturday",
+                "group": "Arms",
+                "mainSets": [
+                    {
+                        "reps": 12,
+                        "weight": 25
+                    },
+                    {
+                        "reps": 10,
+                        "weight": 30
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 35
+                    }
+                ],
+                "warmUpSets": [
+                    {
+                        "reps": 12,
+                        "weight": 10
+                    },
+                    {
+                        "reps": 8,
+                        "weight": 15
+                    }
+                ],
+                "difficulty": "Medium",
+                "notes": ""
+            }
+        ]
+    }
+}

@@ -1,13 +1,17 @@
 <?php
-$dataFile = __DIR__ . '/data/current-week.json';
+$profiles = [
+  'chris' => 'Chris',
+  'dustin' => 'Dustin'
+];
+
+$requestedProfile = isset($_GET['profile']) ? strtolower((string) $_GET['profile']) : 'chris';
+$activeProfile = array_key_exists($requestedProfile, $profiles) ? $requestedProfile : 'chris';
+$activeProfileName = $profiles[$activeProfile];
+$dataFile = profile_data_file($activeProfile);
 
 // Backend wiring: create/load the JSON store used by the locked prototype UI.
 if (!file_exists($dataFile)) {
-  $dataDir = dirname($dataFile);
-  if (!is_dir($dataDir)) {
-    mkdir($dataDir, 0755, true);
-  }
-  file_put_contents($dataFile, json_encode(default_week_data(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
+  ensure_profile_data($activeProfile, $activeProfileName);
 }
 
 $weekData = json_decode(file_get_contents($dataFile), true);
@@ -29,6 +33,33 @@ function sets_for_attr($sets) {
   return array_map(function ($set) {
     return [(int) $set['reps'], (int) $set['weight']];
   }, $sets);
+}
+
+function profile_data_file($profile) {
+  return __DIR__ . '/data/profiles/' . $profile . '/current-week.json';
+}
+
+function ensure_profile_data($profile, $profileName) {
+  $dataFile = profile_data_file($profile);
+  $dataDir = dirname($dataFile);
+  if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0755, true);
+  }
+
+  $templateFile = __DIR__ . '/data/templates/default-week.json';
+  if (file_exists($templateFile)) {
+    $data = json_decode(file_get_contents($templateFile), true);
+  } else {
+    $data = default_week_data();
+  }
+
+  if (!is_array($data) || !isset($data['original'], $data['current'])) {
+    $data = default_week_data();
+  }
+
+  $data['original']['profileName'] = $profileName;
+  $data['current']['profileName'] = $profileName;
+  file_put_contents($dataFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
 }
 
 function default_week_data() {
@@ -130,6 +161,7 @@ $current = $weekData['current'];
       align-items: center;
       justify-content: space-between;
       margin-bottom: 20px;
+      position: relative;
     }
 
     .profile-chip {
@@ -155,6 +187,55 @@ $current = $weekData['current'];
     }
 
     .profile-name { font-size: 14px; font-weight: 700; }
+
+    .profile-menu {
+      position: absolute;
+      right: 0;
+      top: 52px;
+      z-index: 12;
+      width: 210px;
+      display: none;
+      padding: 8px;
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+    }
+
+    .profile-menu.open { display: grid; gap: 4px; }
+
+    .profile-menu button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #0f172a;
+      padding: 10px 11px;
+      text-align: left;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .profile-menu button:hover,
+    .profile-menu button.active {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .profile-menu button:disabled {
+      color: #94a3b8;
+      cursor: not-allowed;
+      background: transparent;
+    }
+
+    .profile-menu-divider {
+      height: 1px;
+      margin: 4px 0;
+      background: #e2e8f0;
+    }
 
     .icon-button {
       width: 42px;
@@ -717,6 +798,221 @@ $current = $weekData['current'];
       cursor: pointer;
     }
 
+    .program-editor {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .program-editor.open {
+      display: block;
+      overflow-y: auto;
+    }
+
+    .editor-shell {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 16px 14px 96px;
+    }
+
+    .editor-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin: -16px -14px 14px;
+      padding: 14px;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .editor-title {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .editor-subtitle {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 750;
+      margin-top: 2px;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .editor-btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .editor-btn.secondary {
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    .editor-btn.primary {
+      background: #0ea5e9;
+      color: #082f49;
+    }
+
+    .editor-save-status {
+      min-height: 18px;
+      margin: 0 0 10px;
+      color: #0369a1;
+      font-size: 12px;
+      font-weight: 850;
+      text-align: right;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0 0 12px;
+    }
+
+    .editor-add-exercise {
+      border: 0;
+      border-radius: 12px;
+      background: #dcfce7;
+      color: #166534;
+      padding: 10px 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .editor-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .editor-card {
+      display: grid;
+      gap: 12px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .editor-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .editor-card-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .editor-delete {
+      border: 0;
+      border-radius: 10px;
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 8px 10px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .editor-field-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .editor-field {
+      display: grid;
+      gap: 5px;
+    }
+
+    .editor-field label {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .editor-field input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      color: #0f172a;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 750;
+      outline: none;
+    }
+
+    .editor-set-section {
+      display: grid;
+      gap: 8px;
+    }
+
+    .editor-set-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .editor-add-set {
+      border: 0;
+      border-radius: 999px;
+      background: #dcfce7;
+      color: #166534;
+      padding: 7px 10px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .editor-set-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .editor-set-row input {
+      min-width: 0;
+    }
+
+    .editor-set-delete {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 10px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
     @media (min-width: 820px) {
       body {
         display: grid;
@@ -738,6 +1034,10 @@ $current = $weekData['current'];
         width: 100%;
         padding: 16px 0 0;
       }
+
+      .editor-field-grid {
+        grid-template-columns: 1.2fr 0.8fr 1fr;
+      }
     }
   </style>
 </head>
@@ -745,10 +1045,18 @@ $current = $weekData['current'];
   <main class="app-shell">
     <header class="top-bar">
       <div class="profile-chip">
-        <div class="avatar">C</div>
-        <div><div class="profile-name"><?= h($current['profileName']) ?></div></div>
+        <div class="avatar"><?= h(substr($activeProfileName, 0, 1)) ?></div>
+        <div><div class="profile-name"><?= h($activeProfileName) ?></div></div>
       </div>
-      <button class="icon-button" aria-label="Settings">☰</button>
+      <button class="icon-button" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false">☰</button>
+      <div class="profile-menu" id="profileMenu" aria-label="Profile menu">
+        <button type="button" id="editProfileButton">Edit Current Profile</button>
+        <button type="button" disabled>New Profile</button>
+        <div class="profile-menu-divider"></div>
+        <?php foreach ($profiles as $profileKey => $profileLabel): ?>
+        <button type="button" class="profile-option<?= $profileKey === $activeProfile ? ' active' : '' ?>" data-profile="<?= h($profileKey) ?>"><?= h($profileLabel) ?></button>
+        <?php endforeach; ?>
+      </div>
     </header>
 
     <section class="hero">
@@ -821,6 +1129,26 @@ $current = $weekData['current'];
       </section>
     </div>
 
+    <section class="program-editor" id="programEditor" aria-hidden="true">
+      <div class="editor-shell">
+        <div class="editor-header">
+          <div>
+            <div class="editor-title"><?= h($activeProfileName) ?> Program Editor</div>
+            <div class="editor-subtitle">Edit exercise structure and planned sets.</div>
+          </div>
+          <div class="editor-actions">
+            <button class="editor-btn secondary" id="closeEditorButton" type="button">Close</button>
+            <button class="editor-btn primary" id="saveEditorButton" type="button">Save Changes</button>
+          </div>
+        </div>
+        <div class="editor-save-status" id="editorSaveStatus"></div>
+        <div class="editor-toolbar">
+          <button class="editor-add-exercise" id="addExerciseButton" type="button">Add Exercise</button>
+        </div>
+        <div class="editor-list" id="editorList"></div>
+      </div>
+    </section>
+
     <nav class="quick-actions" aria-label="Quick actions">
       <div class="action-row">
         <button class="primary-action">+ Add workout</button>
@@ -831,6 +1159,8 @@ $current = $weekData['current'];
 
   <script>
     const workoutData = <?= json_encode($weekData, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const activeProfile = <?= json_encode($activeProfile) ?>;
+    const allowedProfiles = <?= json_encode(array_keys($profiles)) ?>;
     const editLock = document.getElementById('editLock');
     const snapshotToggle = document.getElementById('snapshotToggle');
     const weekHeader = document.getElementById('weekHeader');
@@ -839,9 +1169,27 @@ $current = $weekData['current'];
     const notesArea = document.getElementById('notesArea');
     const closeNotes = document.getElementById('closeNotes');
     const saveStatus = document.getElementById('saveStatus');
+    const profileMenuButton = document.getElementById('profileMenuButton');
+    const profileMenu = document.getElementById('profileMenu');
+    const editProfileButton = document.getElementById('editProfileButton');
+    const programEditor = document.getElementById('programEditor');
+    const editorList = document.getElementById('editorList');
+    const closeEditorButton = document.getElementById('closeEditorButton');
+    const saveEditorButton = document.getElementById('saveEditorButton');
+    const addExerciseButton = document.getElementById('addExerciseButton');
+    const editorSaveStatus = document.getElementById('editorSaveStatus');
     let editMode = false;
     let activeNotesButton = null;
     let saveTimer = null;
+    let editorDraft = null;
+
+    const hasProfileParam = new URLSearchParams(window.location.search).has('profile');
+    const storedProfile = localStorage.getItem('activeWorkoutProfile');
+    if (!hasProfileParam && storedProfile && storedProfile !== activeProfile && allowedProfiles.includes(storedProfile)) {
+      window.location.replace(`index.php?profile=${encodeURIComponent(storedProfile)}`);
+    } else {
+      localStorage.setItem('activeWorkoutProfile', activeProfile);
+    }
 
     function setSaveStatus(message) {
       saveStatus.textContent = message;
@@ -855,7 +1203,7 @@ $current = $weekData['current'];
     }
 
     function saveCurrentData() {
-      fetch('save.php', {
+      fetch(`save.php?profile=${encodeURIComponent(activeProfile)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current: workoutData.current })
@@ -889,6 +1237,226 @@ $current = $weekData['current'];
       select.classList.remove('easy', 'medium', 'hard');
       select.classList.add(select.value.toLowerCase());
     }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function cloneData(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function defaultEditorExercise() {
+      return {
+        name: 'New Exercise',
+        day: 'Monday',
+        group: 'General',
+        mainSets: [{ reps: 10, weight: 0 }],
+        warmUpSets: [{ reps: 10, weight: 0 }],
+        difficulty: 'Medium',
+        notes: ''
+      };
+    }
+
+    function setEditorStatus(message) {
+      editorSaveStatus.textContent = message;
+    }
+
+    function setProfileMenuOpen(open) {
+      profileMenu.classList.toggle('open', open);
+      profileMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    profileMenuButton.addEventListener('click', event => {
+      event.stopPropagation();
+      setProfileMenuOpen(!profileMenu.classList.contains('open'));
+    });
+
+    document.addEventListener('click', event => {
+      if (!profileMenu.contains(event.target) && event.target !== profileMenuButton) {
+        setProfileMenuOpen(false);
+      }
+    });
+
+    document.querySelectorAll('.profile-option').forEach(button => {
+      button.addEventListener('click', () => {
+        const nextProfile = button.dataset.profile;
+        localStorage.setItem('activeWorkoutProfile', nextProfile);
+        window.location.href = `index.php?profile=${encodeURIComponent(nextProfile)}`;
+      });
+    });
+
+    function openProgramEditor() {
+      if (document.body.classList.contains('snapshot-mode')) {
+        originalBig.click();
+      }
+      if (editMode) {
+        editLock.click();
+      }
+      setProfileMenuOpen(false);
+      editorDraft = cloneData(workoutData.current.exercises);
+      renderProgramEditor();
+      setEditorStatus('');
+      programEditor.classList.add('open');
+      programEditor.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeProgramEditor() {
+      programEditor.classList.remove('open');
+      programEditor.setAttribute('aria-hidden', 'true');
+      editorDraft = null;
+    }
+
+    function setRowsHtml(sets, exerciseIndex, type) {
+      return sets.map((set, setIndex) => `
+        <div class="editor-set-row" data-set-index="${setIndex}">
+          <div class="editor-field">
+            <label>Reps</label>
+            <input type="number" min="1" inputmode="numeric" data-field="reps" data-exercise-index="${exerciseIndex}" data-set-type="${type}" data-set-index="${setIndex}" value="${Number(set.reps) || 1}">
+          </div>
+          <div class="editor-field">
+            <label>Weight</label>
+            <input type="number" min="0" inputmode="numeric" data-field="weight" data-exercise-index="${exerciseIndex}" data-set-type="${type}" data-set-index="${setIndex}" value="${Number(set.weight) || 0}">
+          </div>
+          <button class="editor-set-delete" type="button" data-action="delete-set" data-exercise-index="${exerciseIndex}" data-set-type="${type}" data-set-index="${setIndex}" aria-label="Delete set">×</button>
+        </div>
+      `).join('');
+    }
+
+    function renderProgramEditor() {
+      editorList.innerHTML = editorDraft.map((exercise, exerciseIndex) => `
+        <article class="editor-card" data-exercise-index="${exerciseIndex}">
+          <div class="editor-card-head">
+            <div class="editor-card-title">Exercise ${exerciseIndex + 1}</div>
+            <button class="editor-delete" type="button" data-action="delete-exercise" data-exercise-index="${exerciseIndex}">Delete Exercise</button>
+          </div>
+          <div class="editor-field-grid">
+            <div class="editor-field">
+              <label>Exercise Name</label>
+              <input type="text" data-field="name" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.name)}">
+            </div>
+            <div class="editor-field">
+              <label>Day</label>
+              <input type="text" data-field="day" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.day)}">
+            </div>
+            <div class="editor-field">
+              <label>Group</label>
+              <input type="text" data-field="group" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.group)}">
+            </div>
+          </div>
+          <div class="editor-set-section">
+            <div class="editor-set-heading">
+              <span>Main Sets</span>
+              <button class="editor-add-set" type="button" data-action="add-set" data-exercise-index="${exerciseIndex}" data-set-type="mainSets">Add Set</button>
+            </div>
+            ${setRowsHtml(exercise.mainSets || [], exerciseIndex, 'mainSets')}
+          </div>
+          <div class="editor-set-section">
+            <div class="editor-set-heading">
+              <span>Warm-up Sets</span>
+              <button class="editor-add-set" type="button" data-action="add-set" data-exercise-index="${exerciseIndex}" data-set-type="warmUpSets">Add Set</button>
+            </div>
+            ${setRowsHtml(exercise.warmUpSets || [], exerciseIndex, 'warmUpSets')}
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function saveProgramEditor() {
+      if (!editorDraft) return;
+      setEditorStatus('Saving...');
+      saveEditorButton.disabled = true;
+      fetch(`save.php?profile=${encodeURIComponent(activeProfile)}&mode=program`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ program: { exercises: editorDraft } })
+      })
+        .then(response => {
+          if (!response.ok) throw new Error('Save error');
+          return response.json();
+        })
+        .then(result => {
+          if (!result.ok) throw new Error('Save error');
+          setEditorStatus('Saved');
+          window.location.reload();
+        })
+        .catch(() => {
+          saveEditorButton.disabled = false;
+          setEditorStatus('Save error');
+        });
+    }
+
+    editProfileButton.addEventListener('click', openProgramEditor);
+    closeEditorButton.addEventListener('click', closeProgramEditor);
+    saveEditorButton.addEventListener('click', saveProgramEditor);
+    addExerciseButton.addEventListener('click', () => {
+      if (!editorDraft) return;
+      editorDraft.push(defaultEditorExercise());
+      renderProgramEditor();
+      setEditorStatus('');
+
+      const newCard = editorList.querySelector(`[data-exercise-index="${editorDraft.length - 1}"]`);
+      if (newCard) {
+        newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const nameInput = newCard.querySelector('input[data-field="name"]');
+        if (nameInput) {
+          nameInput.focus();
+          nameInput.select();
+        }
+      }
+    });
+
+    editorList.addEventListener('input', event => {
+      const input = event.target.closest('input');
+      if (!input || !editorDraft) return;
+      const exercise = editorDraft[Number(input.dataset.exerciseIndex)];
+      if (!exercise) return;
+      const field = input.dataset.field;
+
+      if (field === 'name' || field === 'day' || field === 'group') {
+        exercise[field] = input.value;
+        return;
+      }
+
+      const sets = exercise[input.dataset.setType];
+      if (!sets || !sets[Number(input.dataset.setIndex)]) return;
+      const minimum = field === 'reps' ? 1 : 0;
+      sets[Number(input.dataset.setIndex)][field] = Math.max(minimum, Number(input.value) || minimum);
+    });
+
+    editorList.addEventListener('click', event => {
+      const button = event.target.closest('button[data-action]');
+      if (!button || !editorDraft) return;
+      const exerciseIndex = Number(button.dataset.exerciseIndex);
+      const action = button.dataset.action;
+
+      if (action === 'delete-exercise') {
+        editorDraft.splice(exerciseIndex, 1);
+        renderProgramEditor();
+        return;
+      }
+
+      const exercise = editorDraft[exerciseIndex];
+      if (!exercise) return;
+      const setType = button.dataset.setType;
+      if (!Array.isArray(exercise[setType])) exercise[setType] = [];
+
+      if (action === 'add-set') {
+        exercise[setType].push({ reps: 10, weight: 0 });
+        renderProgramEditor();
+      }
+
+      if (action === 'delete-set') {
+        exercise[setType].splice(Number(button.dataset.setIndex), 1);
+        renderProgramEditor();
+      }
+    });
 
     function renderSetRow(item, sets) {
       const row = item.querySelector('.set-row');
