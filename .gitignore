@@ -1,0 +1,6 @@
+.DS_Store
+*.log
+*.bak
+/.php-server.pid
+.env
+data/*.tmp
