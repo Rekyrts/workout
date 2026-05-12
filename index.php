@@ -21,6 +21,12 @@ if (!is_array($weekData) || !isset($weekData['original'], $weekData['current']))
   exit;
 }
 
+$exercisePool = load_exercise_pool($weekData);
+$categoryOptions = category_options($weekData, $exercisePool);
+$cssPath = 'assets/css/app.css';
+$cssFile = __DIR__ . '/' . $cssPath;
+$cssVersion = file_exists($cssFile) ? filemtime($cssFile) : time();
+
 function h($value) {
   return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
@@ -37,6 +43,131 @@ function sets_for_attr($sets) {
 
 function profile_data_file($profile) {
   return __DIR__ . '/data/profiles/' . $profile . '/current-week.json';
+}
+
+function exercise_pool_file() {
+  return __DIR__ . '/data/exercise-pool.json';
+}
+
+function load_exercise_pool($weekData) {
+  $poolFile = exercise_pool_file();
+  if (!file_exists($poolFile)) {
+    $poolData = group_exercise_pool(seed_exercise_pool($weekData));
+    file_put_contents($poolFile, json_encode($poolData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
+    return flatten_exercise_pool($poolData);
+  }
+
+  $pool = json_decode(file_get_contents($poolFile), true);
+  return flatten_exercise_pool(is_array($pool) ? $pool : []);
+}
+
+function seed_exercise_pool($weekData) {
+  $pool = [];
+  $seen = [];
+  $sources = [];
+
+  if (isset($weekData['current']['exercises']) && is_array($weekData['current']['exercises'])) {
+    $sources = array_merge($sources, $weekData['current']['exercises']);
+  }
+
+  foreach (glob(__DIR__ . '/data/profiles/*/current-week.json') as $profileFile) {
+    $profileData = json_decode(file_get_contents($profileFile), true);
+    if (isset($profileData['current']['exercises']) && is_array($profileData['current']['exercises'])) {
+      $sources = array_merge($sources, $profileData['current']['exercises']);
+    }
+  }
+
+  foreach ($sources as $exercise) {
+    if (!is_array($exercise) || empty($exercise['name'])) continue;
+    $id = slug_id($exercise['name']);
+    if (isset($seen[$id])) continue;
+    $seen[$id] = true;
+    $pool[] = [
+      'id' => $id,
+      'name' => (string) $exercise['name'],
+      'group' => isset($exercise['group']) && trim((string) $exercise['group']) !== '' ? (string) $exercise['group'] : 'General',
+      'mainSets' => isset($exercise['mainSets']) && is_array($exercise['mainSets']) ? $exercise['mainSets'] : [],
+      'warmUpSets' => isset($exercise['warmUpSets']) && is_array($exercise['warmUpSets']) ? $exercise['warmUpSets'] : []
+    ];
+  }
+
+  return $pool;
+}
+
+function slug_id($value) {
+  $id = strtolower(trim((string) $value));
+  $id = preg_replace('/[^a-z0-9]+/', '-', $id);
+  return trim($id, '-') ?: 'exercise';
+}
+
+function category_options($weekData, $exercisePool) {
+  $categories = ['Chest / Push', 'Back / Pull', 'Legs', 'Arms', 'Shoulders', 'Core', 'General'];
+  $sources = [];
+
+  foreach (['original', 'current'] as $source) {
+    if (isset($weekData[$source]['exercises']) && is_array($weekData[$source]['exercises'])) {
+      $sources = array_merge($sources, $weekData[$source]['exercises']);
+    }
+  }
+  $sources = array_merge($sources, is_array($exercisePool) ? $exercisePool : []);
+
+  foreach ($sources as $exercise) {
+    $group = isset($exercise['group']) ? trim((string) $exercise['group']) : '';
+    if ($group !== '' && !in_array($group, $categories, true)) {
+      $categories[] = $group;
+    }
+  }
+
+  return $categories;
+}
+
+function group_exercise_pool($exercises) {
+  $baseGroups = ['Chest / Push', 'Back / Pull', 'Legs', 'Arms', 'Shoulders', 'Core', 'General'];
+  $groups = [];
+
+  foreach ($baseGroups as $groupName) {
+    $groups[$groupName] = ['name' => $groupName, 'exercises' => []];
+  }
+
+  foreach ($exercises as $exercise) {
+    if (!is_array($exercise)) continue;
+    $groupName = isset($exercise['group']) && trim((string) $exercise['group']) !== '' ? trim((string) $exercise['group']) : 'General';
+    if (!isset($groups[$groupName])) {
+      $groups[$groupName] = ['name' => $groupName, 'exercises' => []];
+    }
+    $groups[$groupName]['exercises'][] = [
+      'id' => isset($exercise['id']) ? (string) $exercise['id'] : slug_id(isset($exercise['name']) ? $exercise['name'] : 'exercise'),
+      'name' => isset($exercise['name']) ? (string) $exercise['name'] : 'Exercise',
+      'mainSets' => isset($exercise['mainSets']) && is_array($exercise['mainSets']) ? $exercise['mainSets'] : [],
+      'warmUpSets' => isset($exercise['warmUpSets']) && is_array($exercise['warmUpSets']) ? $exercise['warmUpSets'] : []
+    ];
+  }
+
+  return ['groups' => array_values($groups)];
+}
+
+function flatten_exercise_pool($poolData) {
+  if (isset($poolData['groups']) && is_array($poolData['groups'])) {
+    $flat = [];
+    foreach ($poolData['groups'] as $group) {
+      if (!is_array($group)) continue;
+      $groupName = isset($group['name']) && trim((string) $group['name']) !== '' ? trim((string) $group['name']) : 'General';
+      $exercises = isset($group['exercises']) && is_array($group['exercises']) ? $group['exercises'] : [];
+      foreach ($exercises as $exercise) {
+        if (!is_array($exercise)) continue;
+        $flat[] = [
+          'id' => isset($exercise['id']) ? (string) $exercise['id'] : slug_id(isset($exercise['name']) ? $exercise['name'] : 'exercise'),
+          'name' => isset($exercise['name']) ? (string) $exercise['name'] : 'Exercise',
+          'group' => $groupName,
+          'mainSets' => isset($exercise['mainSets']) && is_array($exercise['mainSets']) ? $exercise['mainSets'] : [],
+          'warmUpSets' => isset($exercise['warmUpSets']) && is_array($exercise['warmUpSets']) ? $exercise['warmUpSets'] : []
+        ];
+      }
+    }
+    return $flat;
+  }
+
+  return is_array($poolData) ? $poolData : [];
 }
 
 function ensure_profile_data($profile, $profileName) {
@@ -120,6 +251,7 @@ $current = $weekData['current'];
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Workout Tracker</title>
+  <link rel="stylesheet" href="<?= h($cssPath) ?>?v=<?= (int) $cssVersion ?>" />
   <style>
     :root {
       --bg: #0f172a;
@@ -803,8 +935,8 @@ $current = $weekData['current'];
       inset: 0;
       z-index: 30;
       display: none;
-      background: #f8fafc;
-      color: #0f172a;
+      background: radial-gradient(circle at top, #1e3a5f 0%, var(--bg) 48%, #020617 100%);
+      color: var(--white);
     }
 
     .program-editor.open {
@@ -813,37 +945,37 @@ $current = $weekData['current'];
     }
 
     .editor-shell {
-      width: min(720px, 100%);
+      width: min(430px, 100%);
       margin: 0 auto;
       min-height: 100vh;
-      padding: 16px 14px 96px;
+      padding: 18px 16px 96px;
     }
 
     .editor-header {
-      position: sticky;
-      top: 0;
-      z-index: 2;
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      margin: -16px -14px 14px;
-      padding: 14px;
-      background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
+      gap: 14px;
+      align-items: flex-start;
+      margin: 0 0 18px;
+      padding: 0;
+      background: transparent;
+      border-bottom: 0;
     }
 
     .editor-title {
-      font-size: 18px;
+      color: #ffffff;
+      font-size: 30px;
       font-weight: 900;
-      letter-spacing: -0.02em;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
     }
 
     .editor-subtitle {
-      color: #64748b;
-      font-size: 12px;
+      color: #cbd5e1;
+      font-size: 14px;
       font-weight: 750;
-      margin-top: 2px;
+      line-height: 1.4;
+      margin-top: 8px;
     }
 
     .editor-actions {
@@ -854,56 +986,69 @@ $current = $weekData['current'];
     }
 
     .editor-btn {
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      min-height: 42px;
+      padding: 9px 13px;
       font-weight: 900;
       cursor: pointer;
+      white-space: nowrap;
     }
 
     .editor-btn.secondary {
-      background: #e2e8f0;
-      color: #334155;
+      background: rgba(255,255,255,0.11);
+      color: #ffffff;
+      backdrop-filter: blur(12px);
     }
 
     .editor-btn.primary {
-      background: #0ea5e9;
+      border-color: transparent;
+      background: #38bdf8;
       color: #082f49;
     }
 
     .editor-save-status {
       min-height: 18px;
       margin: 0 0 10px;
-      color: #0369a1;
+      color: #bae6fd;
       font-size: 12px;
       font-weight: 850;
       text-align: right;
     }
 
     .editor-toolbar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin: 0 0 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin: 0 0 14px;
+      padding: 14px;
+      background: rgba(255,255,255,0.11);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 26px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.18);
+      backdrop-filter: blur(10px);
     }
 
     .editor-add-exercise,
     .editor-reorder-toggle {
       border: 0;
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 18px;
+      min-height: 48px;
+      padding: 12px 14px;
       font-weight: 900;
       cursor: pointer;
     }
 
     .editor-add-exercise {
-      background: #dcfce7;
-      color: #166534;
+      background: linear-gradient(135deg, var(--accent-2), #14b8a6);
+      color: #052e16;
+      box-shadow: 0 12px 25px rgba(34, 197, 94, 0.22);
     }
 
     .editor-reorder-toggle {
-      background: #e0f2fe;
-      color: #0369a1;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.16);
+      color: #ffffff;
     }
 
     .editor-reorder-toggle.active {
@@ -921,14 +1066,15 @@ $current = $weekData['current'];
       gap: 12px;
       background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 22px;
       padding: 12px;
+      box-shadow: 0 14px 28px rgba(2, 6, 23, 0.16);
     }
 
     .editor-summary {
       width: 100%;
       border: 0;
-      border-radius: 8px;
+      border-radius: 16px;
       background: #f8fafc;
       color: #0f172a;
       display: grid;
@@ -986,10 +1132,10 @@ $current = $weekData['current'];
 
     .editor-move-btn {
       border: 0;
-      border-radius: 10px;
+      border-radius: 14px;
       background: #e2e8f0;
       color: #334155;
-      padding: 8px 10px;
+      padding: 10px;
       font-weight: 900;
       cursor: pointer;
     }
@@ -1006,10 +1152,10 @@ $current = $weekData['current'];
 
     .editor-delete {
       border: 0;
-      border-radius: 10px;
+      border-radius: 14px;
       background: #fee2e2;
       color: #991b1b;
-      padding: 8px 10px;
+      padding: 10px;
       font-weight: 900;
       cursor: pointer;
     }
@@ -1033,11 +1179,13 @@ $current = $weekData['current'];
       letter-spacing: 0.04em;
     }
 
-    .editor-field input {
+    .editor-field input,
+    .editor-field select {
       width: 100%;
       border: 1px solid #cbd5e1;
-      border-radius: 10px;
+      border-radius: 14px;
       padding: 10px;
+      background: #ffffff;
       color: #0f172a;
       font: inherit;
       font-size: 15px;
@@ -1048,6 +1196,10 @@ $current = $weekData['current'];
     .editor-set-section {
       display: grid;
       gap: 8px;
+      padding: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
     }
 
     .editor-set-heading {
@@ -1085,11 +1237,94 @@ $current = $weekData['current'];
       width: 38px;
       height: 38px;
       border: 0;
-      border-radius: 10px;
+      border-radius: 12px;
       background: #fee2e2;
       color: #991b1b;
       font-weight: 900;
       cursor: pointer;
+    }
+
+    .pool-picker {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      background: rgba(15, 23, 42, 0.72);
+      padding: 18px 14px;
+    }
+
+    .pool-picker.open {
+      display: grid;
+      place-items: center;
+    }
+
+    .pool-picker-panel {
+      width: min(620px, 100%);
+      max-height: min(78vh, 680px);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+
+    .pool-picker-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .pool-picker-title {
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .pool-picker-list {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .pool-picker-group {
+      display: grid;
+      gap: 7px;
+    }
+
+    .pool-picker-group-title {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0 2px;
+    }
+
+    .pool-picker-item {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 11px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .pool-picker-name {
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .pool-picker-meta {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 750;
+      margin-top: 3px;
     }
 
     @media (min-width: 820px) {
@@ -1130,6 +1365,7 @@ $current = $weekData['current'];
       <button class="icon-button" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false">☰</button>
       <div class="profile-menu" id="profileMenu" aria-label="Profile menu">
         <button type="button" id="editProfileButton">Edit Current Profile</button>
+        <button type="button" id="exercisePoolButton">Exercise Pool</button>
         <button type="button" disabled>New Profile</button>
         <div class="profile-menu-divider"></div>
         <?php foreach ($profiles as $profileKey => $profileLabel): ?>
@@ -1229,6 +1465,19 @@ $current = $weekData['current'];
       </div>
     </section>
 
+    <section class="pool-picker" id="poolPicker" aria-hidden="true">
+      <div class="pool-picker-panel" role="dialog" aria-label="Choose exercise from pool">
+        <div class="pool-picker-header">
+          <div>
+            <div class="pool-picker-title">Choose Exercise</div>
+            <div class="editor-subtitle">Adds a pool exercise to this profile.</div>
+          </div>
+          <button class="editor-btn secondary" id="closePoolPickerButton" type="button">Close</button>
+        </div>
+        <div class="pool-picker-list" id="poolPickerList"></div>
+      </div>
+    </section>
+
     <nav class="quick-actions" aria-label="Quick actions">
       <div class="action-row">
         <button class="primary-action">+ Add workout</button>
@@ -1239,6 +1488,8 @@ $current = $weekData['current'];
 
   <script>
     const workoutData = <?= json_encode($weekData, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    let exercisePool = <?= json_encode($exercisePool, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const categoryOptions = <?= json_encode($categoryOptions) ?>;
     const activeProfile = <?= json_encode($activeProfile) ?>;
     const allowedProfiles = <?= json_encode(array_keys($profiles)) ?>;
     const editLock = document.getElementById('editLock');
@@ -1252,6 +1503,7 @@ $current = $weekData['current'];
     const profileMenuButton = document.getElementById('profileMenuButton');
     const profileMenu = document.getElementById('profileMenu');
     const editProfileButton = document.getElementById('editProfileButton');
+    const exercisePoolButton = document.getElementById('exercisePoolButton');
     const programEditor = document.getElementById('programEditor');
     const editorList = document.getElementById('editorList');
     const closeEditorButton = document.getElementById('closeEditorButton');
@@ -1259,6 +1511,9 @@ $current = $weekData['current'];
     const reorderToggleButton = document.getElementById('reorderToggleButton');
     const addExerciseButton = document.getElementById('addExerciseButton');
     const editorSaveStatus = document.getElementById('editorSaveStatus');
+    const poolPicker = document.getElementById('poolPicker');
+    const poolPickerList = document.getElementById('poolPickerList');
+    const closePoolPickerButton = document.getElementById('closePoolPickerButton');
     let editMode = false;
     let activeNotesButton = null;
     let saveTimer = null;
@@ -1268,12 +1523,28 @@ $current = $weekData['current'];
     let longPressTimer = null;
     let suppressEditorClick = false;
 
-    const hasProfileParam = new URLSearchParams(window.location.search).has('profile');
+    const initialSearchParams = new URLSearchParams(window.location.search);
+    const hasProfileParam = initialSearchParams.has('profile');
     const storedProfile = localStorage.getItem('activeWorkoutProfile');
     if (!hasProfileParam && storedProfile && storedProfile !== activeProfile && allowedProfiles.includes(storedProfile)) {
-      window.location.replace(`index.php?profile=${encodeURIComponent(storedProfile)}`);
+      initialSearchParams.set('profile', storedProfile);
+      window.location.replace(`index.php?${initialSearchParams.toString()}`);
     } else {
       localStorage.setItem('activeWorkoutProfile', activeProfile);
+    }
+
+    function setViewParam(view) {
+      const url = new URL(window.location.href);
+      if (view) {
+        url.searchParams.set('view', view);
+      } else {
+        url.searchParams.delete('view');
+      }
+      window.history.replaceState({}, '', url);
+    }
+
+    function currentViewParam() {
+      return new URLSearchParams(window.location.search).get('view');
     }
 
     function setSaveStatus(message) {
@@ -1337,16 +1608,27 @@ $current = $weekData['current'];
       return JSON.parse(JSON.stringify(value));
     }
 
-    function defaultEditorExercise() {
+    function editorExerciseFromPool(poolExercise) {
       return {
-        name: 'New Exercise',
+        poolId: poolExercise.id || '',
+        name: poolExercise.name || 'New Exercise',
         day: 'Monday',
-        group: 'General',
-        mainSets: [{ reps: 10, weight: 0 }],
-        warmUpSets: [{ reps: 10, weight: 0 }],
+        group: poolExercise.group || 'General',
+        mainSets: cloneData(Array.isArray(poolExercise.mainSets) && poolExercise.mainSets.length ? poolExercise.mainSets : [{ reps: 10, weight: 0 }]),
+        warmUpSets: cloneData(Array.isArray(poolExercise.warmUpSets) ? poolExercise.warmUpSets : []),
         difficulty: 'Medium',
         notes: ''
       };
+    }
+
+    function categorySelectHtml(selectedGroup, exerciseIndex) {
+      const groups = [...categoryOptions];
+      if (selectedGroup && !groups.includes(selectedGroup)) groups.push(selectedGroup);
+      return `
+        <select data-field="group" data-exercise-index="${exerciseIndex}">
+          ${groups.map(group => `<option value="${escapeHtml(group)}"${group === selectedGroup ? ' selected' : ''}>${escapeHtml(group)}</option>`).join('')}
+        </select>
+      `;
     }
 
     function setEditorStatus(message) {
@@ -1384,7 +1666,12 @@ $current = $weekData['current'];
       });
     });
 
-    function openProgramEditor() {
+    exercisePoolButton.addEventListener('click', () => {
+      setProfileMenuOpen(false);
+      window.location.href = `exercise-pool.php?profile=${encodeURIComponent(activeProfile)}`;
+    });
+
+    function openProgramEditor(updateUrl = true) {
       if (document.body.classList.contains('snapshot-mode')) {
         originalBig.click();
       }
@@ -1399,14 +1686,20 @@ $current = $weekData['current'];
       setEditorStatus('');
       programEditor.classList.add('open');
       programEditor.setAttribute('aria-hidden', 'false');
+      if (updateUrl) {
+        setViewParam('editor');
+      }
     }
 
-    function closeProgramEditor() {
+    function closeProgramEditor(updateUrl = true) {
       programEditor.classList.remove('open');
       programEditor.setAttribute('aria-hidden', 'true');
       editorDraft = null;
       expandedExerciseIndex = null;
       setReorderMode(false);
+      if (updateUrl) {
+        setViewParam(null);
+      }
     }
 
     function setRowsHtml(sets, exerciseIndex, type) {
@@ -1458,7 +1751,7 @@ $current = $weekData['current'];
               </div>
               <div class="editor-field">
                 <label>Group</label>
-                <input type="text" data-field="group" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.group)}">
+                ${categorySelectHtml(exercise.group || 'General', exerciseIndex)}
               </div>
             </div>
             <div class="editor-set-section">
@@ -1507,28 +1800,107 @@ $current = $weekData['current'];
         });
     }
 
-    editProfileButton.addEventListener('click', openProgramEditor);
-    closeEditorButton.addEventListener('click', closeProgramEditor);
-    saveEditorButton.addEventListener('click', saveProgramEditor);
-    reorderToggleButton.addEventListener('click', () => {
-      setReorderMode(!reorderMode);
-    });
-    addExerciseButton.addEventListener('click', () => {
+    function openPoolPicker() {
       if (!editorDraft) return;
-      editorDraft.push(defaultEditorExercise());
+      poolPickerList.innerHTML = '<div class="pool-picker-meta">Loading exercises...</div>';
+      poolPicker.classList.add('open');
+      poolPicker.setAttribute('aria-hidden', 'false');
+      refreshExercisePool()
+        .then(renderPoolPicker)
+        .catch(() => {
+          poolPickerList.innerHTML = '<div class="pool-picker-meta">Could not load the latest Exercise Pool.</div>';
+        });
+    }
+
+    function closePoolPicker() {
+      poolPicker.classList.remove('open');
+      poolPicker.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderPoolPicker() {
+      if (!exercisePool.length) {
+        poolPickerList.innerHTML = '<div class="pool-picker-meta">No exercises are in the pool yet. Open Exercise Pool to add one.</div>';
+        return;
+      }
+
+      const grouped = exercisePool.reduce((groups, exercise, poolIndex) => {
+        const groupName = exercise.group || 'General';
+        if (!groups[groupName]) groups[groupName] = [];
+        groups[groupName].push({ exercise, poolIndex });
+        return groups;
+      }, {});
+
+      poolPickerList.innerHTML = Object.keys(grouped).map(groupName => `
+        <div class="pool-picker-group">
+          <div class="pool-picker-group-title">${escapeHtml(groupName)}</div>
+          ${grouped[groupName].map(({ exercise, poolIndex }) => `
+            <button class="pool-picker-item" type="button" data-pool-index="${poolIndex}">
+              <div class="pool-picker-name">${escapeHtml(exercise.name || 'Exercise')}</div>
+              <div class="pool-picker-meta">${(exercise.mainSets || []).length} main · ${(exercise.warmUpSets || []).length} warm-up</div>
+            </button>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    function refreshExercisePool() {
+      return fetch(`data/exercise-pool.json?v=${Date.now()}`, { cache: 'no-store' })
+        .then(response => {
+          if (!response.ok) throw new Error('Pool load error');
+          return response.json();
+        })
+        .then(pool => {
+          exercisePool = flattenPoolData(pool);
+        });
+    }
+
+    function flattenPoolData(pool) {
+      if (pool && Array.isArray(pool.groups)) {
+        return pool.groups.flatMap(group => {
+          const groupName = group && group.name ? group.name : 'General';
+          const exercises = group && Array.isArray(group.exercises) ? group.exercises : [];
+          return exercises.map(exercise => ({
+            id: exercise.id || '',
+            name: exercise.name || 'Exercise',
+            group: groupName,
+            mainSets: Array.isArray(exercise.mainSets) ? exercise.mainSets : [],
+            warmUpSets: Array.isArray(exercise.warmUpSets) ? exercise.warmUpSets : []
+          }));
+        });
+      }
+
+      return Array.isArray(pool) ? pool : [];
+    }
+
+    function addExerciseFromPool(poolExercise) {
+      if (!editorDraft || !poolExercise) return;
+      editorDraft.push(editorExerciseFromPool(poolExercise));
       expandedExerciseIndex = editorDraft.length - 1;
+      closePoolPicker();
       renderProgramEditor();
       setEditorStatus('');
 
       const newCard = editorList.querySelector(`[data-exercise-index="${editorDraft.length - 1}"]`);
       if (newCard) {
         newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        const nameInput = newCard.querySelector('input[data-field="name"]');
-        if (nameInput) {
-          nameInput.focus();
-          nameInput.select();
-        }
       }
+    }
+
+    editProfileButton.addEventListener('click', openProgramEditor);
+    closeEditorButton.addEventListener('click', closeProgramEditor);
+    closePoolPickerButton.addEventListener('click', closePoolPicker);
+    saveEditorButton.addEventListener('click', saveProgramEditor);
+    reorderToggleButton.addEventListener('click', () => {
+      setReorderMode(!reorderMode);
+    });
+    addExerciseButton.addEventListener('click', () => {
+      openPoolPicker();
+    });
+
+    poolPickerList.addEventListener('click', event => {
+      const button = event.target.closest('.pool-picker-item');
+      if (!button) return;
+      addExerciseFromPool(exercisePool[Number(button.dataset.poolIndex)]);
     });
 
     editorList.addEventListener('pointerdown', event => {
@@ -1571,6 +1943,13 @@ $current = $weekData['current'];
       if (!sets || !sets[Number(input.dataset.setIndex)]) return;
       const minimum = field === 'reps' ? 1 : 0;
       sets[Number(input.dataset.setIndex)][field] = Math.max(minimum, Number(input.value) || minimum);
+    });
+
+    editorList.addEventListener('change', event => {
+      const select = event.target.closest('select[data-field="group"]');
+      if (!select || !editorDraft) return;
+      const exercise = editorDraft[Number(select.dataset.exerciseIndex)];
+      if (exercise) exercise.group = select.value;
     });
 
     editorList.addEventListener('click', event => {
@@ -1724,6 +2103,10 @@ $current = $weekData['current'];
       snapshotToggle.setAttribute('aria-label', 'Show original workout snapshot');
       renderWorkoutList('current');
     });
+
+    if (currentViewParam() === 'editor') {
+      openProgramEditor(false);
+    }
 
 
     editLock.addEventListener('click', () => {

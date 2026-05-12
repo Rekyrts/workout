@@ -13,6 +13,37 @@ $profiles = [
 ];
 $requestedProfile = isset($_GET['profile']) ? strtolower((string) $_GET['profile']) : 'chris';
 $activeProfile = array_key_exists($requestedProfile, $profiles) ? $requestedProfile : 'chris';
+$input = json_decode(file_get_contents('php://input'), true);
+$mode = isset($_GET['mode']) ? (string) $_GET['mode'] : 'log';
+
+if ($mode === 'exercise-pool') {
+  if (!is_array($input) || ((!isset($input['groups']) || !is_array($input['groups'])) && (!isset($input['exercises']) || !is_array($input['exercises'])))) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'Missing exercise pool data']);
+    exit;
+  }
+
+  $pool = isset($input['groups']) && is_array($input['groups'])
+    ? sanitize_exercise_pool_groups($input['groups'], $error)
+    : group_flat_exercise_pool(sanitize_exercise_pool($input['exercises'], $error));
+  if ($pool === null) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => $error]);
+    exit;
+  }
+
+  $poolFile = __DIR__ . '/data/exercise-pool.json';
+  $json = json_encode($pool, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+  if ($json === false || file_put_contents($poolFile, $json . PHP_EOL, LOCK_EX) === false) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Could not write exercise pool data']);
+    exit;
+  }
+
+  echo json_encode(['ok' => true]);
+  exit;
+}
+
 $dataFile = __DIR__ . '/data/profiles/' . $activeProfile . '/current-week.json';
 
 if (!file_exists($dataFile)) {
@@ -22,8 +53,6 @@ if (!file_exists($dataFile)) {
 }
 
 $stored = json_decode(file_get_contents($dataFile), true);
-$input = json_decode(file_get_contents('php://input'), true);
-$mode = isset($_GET['mode']) ? (string) $_GET['mode'] : 'log';
 
 // Backend wiring: accept only editable current-state fields and preserve original.
 if (!is_array($stored) || !isset($stored['original'], $stored['current'])) {
@@ -170,6 +199,7 @@ function sanitize_program($program, $stored, $profileName, &$error) {
     $currentExercise = isset($currentExercises[$index]) && is_array($currentExercises[$index]) ? $currentExercises[$index] : [];
 
     $newOriginal = [
+      'poolId' => clean_text(isset($exercise['poolId']) ? $exercise['poolId'] : '', 120),
       'name' => clean_text(isset($exercise['name']) ? $exercise['name'] : '', 120),
       'day' => clean_text(isset($exercise['day']) ? $exercise['day'] : '', 80),
       'group' => clean_text(isset($exercise['group']) ? $exercise['group'] : '', 120),
@@ -253,4 +283,151 @@ function set_changed_from_original($currentSet, $originalSet) {
 
 function clean_text($value, $limit) {
   return substr(trim((string) $value), 0, $limit);
+}
+
+function sanitize_exercise_pool($exercises, &$error) {
+  $error = '';
+  $clean = [];
+  $seenIds = [];
+
+  foreach ($exercises as $exercise) {
+    if (!is_array($exercise)) {
+      $error = 'Exercise pool item is invalid';
+      return null;
+    }
+
+    $name = clean_text(isset($exercise['name']) ? $exercise['name'] : '', 120);
+    if ($name === '') {
+      $error = 'Exercise name is required';
+      return null;
+    }
+
+    $id = clean_id(isset($exercise['id']) ? $exercise['id'] : '');
+    if ($id === '') {
+      $id = clean_id($name);
+    }
+    $baseId = $id;
+    $suffix = 2;
+    while (isset($seenIds[$id])) {
+      $id = $baseId . '-' . $suffix;
+      $suffix += 1;
+    }
+    $seenIds[$id] = true;
+
+    $mainSets = sanitize_program_sets(isset($exercise['mainSets']) ? $exercise['mainSets'] : [], $error);
+    if ($mainSets === null) return null;
+    $warmUpSets = sanitize_program_sets(isset($exercise['warmUpSets']) ? $exercise['warmUpSets'] : [], $error);
+    if ($warmUpSets === null) return null;
+
+    $clean[] = [
+      'id' => $id,
+      'name' => $name,
+      'group' => clean_text(isset($exercise['group']) ? $exercise['group'] : 'General', 120) ?: 'General',
+      'mainSets' => $mainSets,
+      'warmUpSets' => $warmUpSets
+    ];
+  }
+
+  return $clean;
+}
+
+function clean_id($value) {
+  $id = strtolower(trim((string) $value));
+  $id = preg_replace('/[^a-z0-9]+/', '-', $id);
+  $id = trim($id, '-');
+  return substr($id, 0, 80);
+}
+
+function sanitize_exercise_pool_groups($groups, &$error) {
+  $error = '';
+  $cleanGroups = [];
+  $seenGroupNames = [];
+  $seenIds = [];
+
+  foreach ($groups as $group) {
+    if (!is_array($group)) {
+      $error = 'Exercise pool group is invalid';
+      return null;
+    }
+
+    $groupName = clean_text(isset($group['name']) ? $group['name'] : '', 120);
+    if ($groupName === '') {
+      $error = 'Group name is required';
+      return null;
+    }
+
+    $groupKey = strtolower($groupName);
+    if (isset($seenGroupNames[$groupKey])) {
+      continue;
+    }
+    $seenGroupNames[$groupKey] = true;
+
+    $cleanExercises = [];
+    $exercises = isset($group['exercises']) && is_array($group['exercises']) ? $group['exercises'] : [];
+    foreach ($exercises as $exercise) {
+      if (!is_array($exercise)) {
+        $error = 'Exercise pool item is invalid';
+        return null;
+      }
+
+      $name = clean_text(isset($exercise['name']) ? $exercise['name'] : '', 120);
+      if ($name === '') {
+        $error = 'Exercise name is required';
+        return null;
+      }
+
+      $id = clean_id(isset($exercise['id']) ? $exercise['id'] : '');
+      if ($id === '') {
+        $id = clean_id($name);
+      }
+      $baseId = $id;
+      $suffix = 2;
+      while (isset($seenIds[$id])) {
+        $id = $baseId . '-' . $suffix;
+        $suffix += 1;
+      }
+      $seenIds[$id] = true;
+
+      $mainSets = sanitize_program_sets(isset($exercise['mainSets']) ? $exercise['mainSets'] : [], $error);
+      if ($mainSets === null) return null;
+      $warmUpSets = sanitize_program_sets(isset($exercise['warmUpSets']) ? $exercise['warmUpSets'] : [], $error);
+      if ($warmUpSets === null) return null;
+
+      $cleanExercises[] = [
+        'id' => $id,
+        'name' => $name,
+        'mainSets' => $mainSets,
+        'warmUpSets' => $warmUpSets
+      ];
+    }
+
+    $cleanGroups[] = [
+      'name' => $groupName,
+      'exercises' => $cleanExercises
+    ];
+  }
+
+  return ['groups' => $cleanGroups];
+}
+
+function group_flat_exercise_pool($exercises) {
+  if ($exercises === null) {
+    return null;
+  }
+
+  $groups = [];
+  foreach ($exercises as $exercise) {
+    $groupName = isset($exercise['group']) && trim((string) $exercise['group']) !== '' ? trim((string) $exercise['group']) : 'General';
+    if (!isset($groups[$groupName])) {
+      $groups[$groupName] = ['name' => $groupName, 'exercises' => []];
+    }
+    $groups[$groupName]['exercises'][] = [
+      'id' => $exercise['id'],
+      'name' => $exercise['name'],
+      'mainSets' => $exercise['mainSets'],
+      'warmUpSets' => $exercise['warmUpSets']
+    ];
+  }
+
+  return ['groups' => array_values($groups)];
 }

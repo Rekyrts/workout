@@ -1,0 +1,148 @@
+{
+    "groups": [
+        {
+            "name": "Chest / Push",
+            "exercises": [
+                {
+                    "id": "bench-press",
+                    "name": "Bench Press",
+                    "mainSets": [
+                        {
+                            "reps": 10,
+                            "weight": 135
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 155
+                        },
+                        {
+                            "reps": 6,
+                            "weight": 165
+                        }
+                    ],
+                    "warmUpSets": [
+                        {
+                            "reps": 12,
+                            "weight": 45
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 95
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Back / Pull",
+            "exercises": [
+                {
+                    "id": "lat-pulldown",
+                    "name": "Lat Pulldown",
+                    "mainSets": [
+                        {
+                            "reps": 12,
+                            "weight": 90
+                        },
+                        {
+                            "reps": 10,
+                            "weight": 105
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 120
+                        }
+                    ],
+                    "warmUpSets": [
+                        {
+                            "reps": 12,
+                            "weight": 45
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 70
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Legs",
+            "exercises": [
+                {
+                    "id": "leg-press",
+                    "name": "Leg Press",
+                    "mainSets": [
+                        {
+                            "reps": 12,
+                            "weight": 180
+                        },
+                        {
+                            "reps": 10,
+                            "weight": 230
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 270
+                        }
+                    ],
+                    "warmUpSets": [
+                        {
+                            "reps": 12,
+                            "weight": 90
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 140
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Arms",
+            "exercises": [
+                {
+                    "id": "arm-curls",
+                    "name": "Arm Curls",
+                    "mainSets": [
+                        {
+                            "reps": 12,
+                            "weight": 25
+                        },
+                        {
+                            "reps": 10,
+                            "weight": 30
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 35
+                        }
+                    ],
+                    "warmUpSets": [
+                        {
+                            "reps": 12,
+                            "weight": 10
+                        },
+                        {
+                            "reps": 8,
+                            "weight": 15
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Shoulders",
+            "exercises": []
+        },
+        {
+            "name": "Core",
+            "exercises": []
+        },
+        {
+            "name": "General",
+            "exercises": []
+        }
+    ]
+}
