@@ -206,7 +206,7 @@ function default_week_data() {
     ],
     [
       'name' => 'Lat Pulldown',
-      'day' => 'Wednesday',
+      'day' => 'Monday',
       'group' => 'Back / Pull',
       'mainSets' => [['reps' => 12, 'weight' => 90], ['reps' => 10, 'weight' => 105], ['reps' => 8, 'weight' => 120]],
       'warmUpSets' => [['reps' => 12, 'weight' => 45], ['reps' => 8, 'weight' => 70]],
@@ -215,7 +215,7 @@ function default_week_data() {
     ],
     [
       'name' => 'Leg Press',
-      'day' => 'Friday',
+      'day' => 'Monday',
       'group' => 'Legs',
       'mainSets' => [['reps' => 12, 'weight' => 180], ['reps' => 10, 'weight' => 230], ['reps' => 8, 'weight' => 270]],
       'warmUpSets' => [['reps' => 12, 'weight' => 90], ['reps' => 8, 'weight' => 140]],
@@ -224,7 +224,7 @@ function default_week_data() {
     ],
     [
       'name' => 'Arm Curls',
-      'day' => 'Saturday',
+      'day' => 'Monday',
       'group' => 'Arms',
       'mainSets' => [['reps' => 12, 'weight' => 25], ['reps' => 10, 'weight' => 30], ['reps' => 8, 'weight' => 35]],
       'warmUpSets' => [['reps' => 12, 'weight' => 10], ['reps' => 8, 'weight' => 15]],
@@ -964,10 +964,27 @@ $current = $weekData['current'];
 
     .editor-title {
       color: #ffffff;
-      font-size: 30px;
       font-weight: 900;
       line-height: 1.05;
       letter-spacing: -0.04em;
+    }
+
+    .editor-title-kicker {
+      display: block;
+      color: #bae6fd;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .editor-title-name {
+      display: block;
+      color: #ffffff;
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1.05;
     }
 
     .editor-subtitle {
@@ -1018,7 +1035,7 @@ $current = $weekData['current'];
 
     .editor-toolbar {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 1fr;
       gap: 10px;
       margin: 0 0 14px;
       padding: 14px;
@@ -1027,6 +1044,38 @@ $current = $weekData['current'];
       border-radius: 26px;
       box-shadow: 0 18px 45px rgba(0,0,0,0.18);
       backdrop-filter: blur(10px);
+    }
+
+    .editor-day-control {
+      display: grid;
+      gap: 6px;
+    }
+
+    .editor-day-control label {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .editor-day-control select {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 14px;
+      padding: 11px 12px;
+      background: rgba(255,255,255,0.96);
+      color: #0f172a;
+      font: inherit;
+      font-weight: 850;
+      outline: none;
+    }
+
+    .editor-toolbar-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
     }
 
     .editor-add-exercise,
@@ -1059,6 +1108,17 @@ $current = $weekData['current'];
     .editor-list {
       display: grid;
       gap: 12px;
+    }
+
+    .editor-empty-state {
+      padding: 18px 14px;
+      background: rgba(255,255,255,0.11);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 22px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 850;
+      text-align: center;
     }
 
     .editor-card {
@@ -1448,7 +1508,7 @@ $current = $weekData['current'];
       <div class="editor-shell">
         <div class="editor-header">
           <div>
-            <div class="editor-title"><?= h($activeProfileName) ?> Program Editor</div>
+            <div class="editor-title"><span class="editor-title-kicker">Editing</span><span class="editor-title-name"><?= h($activeProfileName) ?></span></div>
             <div class="editor-subtitle">Edit exercise structure and planned sets.</div>
           </div>
           <div class="editor-actions">
@@ -1458,8 +1518,22 @@ $current = $weekData['current'];
         </div>
         <div class="editor-save-status" id="editorSaveStatus"></div>
         <div class="editor-toolbar">
-          <button class="editor-reorder-toggle" id="reorderToggleButton" type="button">Reorder</button>
-          <button class="editor-add-exercise" id="addExerciseButton" type="button">Add Exercise</button>
+          <div class="editor-day-control">
+            <label for="editorDaySelect">Current Day</label>
+            <select id="editorDaySelect">
+              <option>Monday</option>
+              <option>Tuesday</option>
+              <option>Wednesday</option>
+              <option>Thursday</option>
+              <option>Friday</option>
+              <option>Saturday</option>
+              <option>Sunday</option>
+            </select>
+          </div>
+          <div class="editor-toolbar-actions">
+            <button class="editor-reorder-toggle" id="reorderToggleButton" type="button">Reorder</button>
+            <button class="editor-add-exercise" id="addExerciseButton" type="button">Add Exercise</button>
+          </div>
         </div>
         <div class="editor-list" id="editorList"></div>
       </div>
@@ -1510,6 +1584,7 @@ $current = $weekData['current'];
     const saveEditorButton = document.getElementById('saveEditorButton');
     const reorderToggleButton = document.getElementById('reorderToggleButton');
     const addExerciseButton = document.getElementById('addExerciseButton');
+    const editorDaySelect = document.getElementById('editorDaySelect');
     const editorSaveStatus = document.getElementById('editorSaveStatus');
     const poolPicker = document.getElementById('poolPicker');
     const poolPickerList = document.getElementById('poolPickerList');
@@ -1519,6 +1594,7 @@ $current = $weekData['current'];
     let saveTimer = null;
     let editorDraft = null;
     let expandedExerciseIndex = null;
+    let selectedEditorDay = 'Monday';
     let reorderMode = false;
     let longPressTimer = null;
     let suppressEditorClick = false;
@@ -1612,7 +1688,7 @@ $current = $weekData['current'];
       return {
         poolId: poolExercise.id || '',
         name: poolExercise.name || 'New Exercise',
-        day: 'Monday',
+        day: selectedEditorDay,
         group: poolExercise.group || 'General',
         mainSets: cloneData(Array.isArray(poolExercise.mainSets) && poolExercise.mainSets.length ? poolExercise.mainSets : [{ reps: 10, weight: 0 }]),
         warmUpSets: cloneData(Array.isArray(poolExercise.warmUpSets) ? poolExercise.warmUpSets : []),
@@ -1627,6 +1703,15 @@ $current = $weekData['current'];
       return `
         <select data-field="group" data-exercise-index="${exerciseIndex}">
           ${groups.map(group => `<option value="${escapeHtml(group)}"${group === selectedGroup ? ' selected' : ''}>${escapeHtml(group)}</option>`).join('')}
+        </select>
+      `;
+    }
+
+    function daySelectHtml(selectedDay, exerciseIndex) {
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      return `
+        <select data-field="day" data-exercise-index="${exerciseIndex}">
+          ${days.map(day => `<option value="${day}"${day === selectedDay ? ' selected' : ''}>${day}</option>`).join('')}
         </select>
       `;
     }
@@ -1680,6 +1765,8 @@ $current = $weekData['current'];
       }
       setProfileMenuOpen(false);
       editorDraft = cloneData(workoutData.current.exercises);
+      selectedEditorDay = 'Monday';
+      editorDaySelect.value = selectedEditorDay;
       expandedExerciseIndex = null;
       setReorderMode(false);
       renderProgramEditor();
@@ -1719,7 +1806,16 @@ $current = $weekData['current'];
     }
 
     function renderProgramEditor() {
-      editorList.innerHTML = editorDraft.map((exercise, exerciseIndex) => {
+      const visibleExercises = editorDraft
+        .map((exercise, exerciseIndex) => ({ exercise, exerciseIndex }))
+        .filter(({ exercise }) => (exercise.day || 'Monday') === selectedEditorDay);
+
+      if (!visibleExercises.length) {
+        editorList.innerHTML = '<div class="editor-empty-state">No exercises for this day yet.</div>';
+        return;
+      }
+
+      editorList.innerHTML = visibleExercises.map(({ exercise, exerciseIndex }, visibleIndex) => {
         const isExpanded = expandedExerciseIndex === exerciseIndex;
         return `
         <article class="editor-card${isExpanded ? ' expanded' : ''}" data-exercise-index="${exerciseIndex}">
@@ -1732,7 +1828,7 @@ $current = $weekData['current'];
               <span class="editor-summary-label">Name</span>
               <span class="editor-summary-value">${escapeHtml(exercise.name || 'New Exercise')}</span>
             </span>
-            <span class="editor-summary-number">Exercise ${exerciseIndex + 1}</span>
+            <span class="editor-summary-number">Exercise ${visibleIndex + 1}</span>
           </button>
           <div class="editor-reorder-controls">
             <button class="editor-move-btn" type="button" data-action="move-exercise" data-direction="-1" data-exercise-index="${exerciseIndex}"${exerciseIndex === 0 ? ' disabled' : ''}>Move Up</button>
@@ -1746,8 +1842,8 @@ $current = $weekData['current'];
                 <input type="text" data-field="name" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.name)}">
               </div>
               <div class="editor-field">
-                <label>Day</label>
-                <input type="text" data-field="day" data-exercise-index="${exerciseIndex}" value="${escapeHtml(exercise.day)}">
+                <label>Exercise Day</label>
+                ${daySelectHtml(exercise.day || 'Monday', exerciseIndex)}
               </div>
               <div class="editor-field">
                 <label>Group</label>
@@ -1890,6 +1986,13 @@ $current = $weekData['current'];
     closeEditorButton.addEventListener('click', closeProgramEditor);
     closePoolPickerButton.addEventListener('click', closePoolPicker);
     saveEditorButton.addEventListener('click', saveProgramEditor);
+    editorDaySelect.addEventListener('change', () => {
+      selectedEditorDay = editorDaySelect.value;
+      expandedExerciseIndex = null;
+      setReorderMode(false);
+      renderProgramEditor();
+      setEditorStatus('');
+    });
     reorderToggleButton.addEventListener('click', () => {
       setReorderMode(!reorderMode);
     });
@@ -1934,7 +2037,7 @@ $current = $weekData['current'];
       if (!exercise) return;
       const field = input.dataset.field;
 
-      if (field === 'name' || field === 'day' || field === 'group') {
+      if (field === 'name' || field === 'group') {
         exercise[field] = input.value;
         return;
       }
@@ -1947,9 +2050,22 @@ $current = $weekData['current'];
 
     editorList.addEventListener('change', event => {
       const select = event.target.closest('select[data-field="group"]');
-      if (!select || !editorDraft) return;
-      const exercise = editorDraft[Number(select.dataset.exerciseIndex)];
-      if (exercise) exercise.group = select.value;
+      const daySelect = event.target.closest('select[data-field="day"]');
+      if (!editorDraft) return;
+
+      if (select) {
+        const exercise = editorDraft[Number(select.dataset.exerciseIndex)];
+        if (exercise) exercise.group = select.value;
+      }
+
+      if (daySelect) {
+        const exercise = editorDraft[Number(daySelect.dataset.exerciseIndex)];
+        if (exercise) {
+          exercise.day = daySelect.value;
+          expandedExerciseIndex = null;
+          renderProgramEditor();
+        }
+      }
     });
 
     editorList.addEventListener('click', event => {

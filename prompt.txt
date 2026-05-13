@@ -1,0 +1,107 @@
+Read DEV_CONTEXT.md first and follow it.
+
+We are continuing the workout app.
+
+TASK:
+Adjust Profile Editor wording and day/workout-week handling.
+
+CRITICAL RULES:
+- Do NOT redesign the main workout/logging screen.
+- Do NOT break profile switching.
+- Do NOT break Exercise Pool.
+- Do NOT change data paths unless necessary.
+- Keep PHP 8.0 compatibility.
+- No external dependencies.
+
+TITLE CHANGE:
+In the Profile Editor, replace:
+
+"<name> Program Editor"
+
+with:
+
+"Editing <name>"
+
+Styling:
+- The word "Editing" should be smaller/lighter.
+- The profile name should remain visually stronger.
+- Example:
+  small text: Editing
+    larger text: Chris
+
+    DAY / WORKOUT WEEK CONCEPT:
+    Right now we have not truly created multiple workout days yet.
+
+    For now:
+    - Treat all current exercises as belonging to Monday.
+    - Remove references to Wednesday, Friday, Saturday, or any other day from the current profile data and UI.
+    - Apply this to both profiles: Chris and Dustin.
+    - Any existing exercises in both profiles should be updated to day: "Monday".
+
+    DISPLAY WORDING:
+    In the Profile Editor:
+    - Instead of showing "Monday" as a hardcoded day label for the current editor context, show "Current Day".
+    - Since the current day is currently Monday, "Current Day" means Monday for now.
+
+    DAY SELECTION:
+    Add or preserve a simple day selector in the Profile Editor.
+
+    Purpose:
+    - Let the user select another day in the workout week later.
+    - For now, Monday is the only populated/active day.
+    - Other days may appear as options but should not introduce full day/week logic yet.
+
+    Suggested options:
+    - Monday
+    - Tuesday
+    - Wednesday
+    - Thursday
+    - Friday
+    - Saturday
+    - Sunday
+
+    Behavior for now:
+    - Default to the current day.
+    - Current day is Monday.
+    - Only Monday has exercises right now.
+    - Selecting another day can show an empty state like:
+      "No exercises for this day yet."
+      - Do NOT create full multi-day workout logic yet.
+      - Do NOT create week history yet.
+      - Do NOT create multi-week program builder yet.
+
+      DATA CLEANUP:
+      Update both profile data files so all existing exercises use:
+
+      day: "Monday"
+
+      Check:
+      - data/profiles/chris/current-week.json
+      - data/profiles/dustin/current-week.json
+      - any template/default data if needed
+
+      PROFILE EDITOR ADD EXERCISE:
+      When adding an exercise from the Exercise Pool to the profile:
+      - default it to the currently selected day
+      - since current day is Monday now, it should default to Monday
+      - later, if another day is selected, new exercises should use that selected day
+
+      MAIN APP DISPLAY:
+      Main workout/logging screen should reflect the current day cleanly.
+      Do not display old mixed day labels from Wednesday/Friday/Saturday.
+      For now, all shown exercises are part of Monday/current day.
+
+      README:
+      Update README.md briefly:
+      - Profile Editor title changed to "Editing <name>"
+      - All current exercises are Monday/current day for now
+      - Day selector exists as a placeholder for future workout-week expansion
+      - Full multi-day/week behavior is intentionally not implemented yet
+
+      FINAL CHECK:
+      After changes, explain:
+      - files changed
+      - how profile editor title changed
+      - how both profiles were normalized to Monday
+      - how current day/day selector works
+      - what remains intentionally not implemented

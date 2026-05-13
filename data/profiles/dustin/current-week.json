@@ -37,7 +37,7 @@
             },
             {
                 "name": "Lat Pulldown",
-                "day": "Wednesday",
+                "day": "Monday",
                 "group": "Back / Pull",
                 "mainSets": [
                     {
@@ -68,7 +68,7 @@
             },
             {
                 "name": "Leg Press",
-                "day": "Friday",
+                "day": "Monday",
                 "group": "Legs",
                 "mainSets": [
                     {
@@ -99,7 +99,7 @@
             },
             {
                 "name": "Arm Curls",
-                "day": "Saturday",
+                "day": "Monday",
                 "group": "Arms",
                 "mainSets": [
                     {
@@ -168,7 +168,7 @@
             },
             {
                 "name": "Lat Pulldown",
-                "day": "Wednesday",
+                "day": "Monday",
                 "group": "Back / Pull",
                 "mainSets": [
                     {
@@ -199,7 +199,7 @@
             },
             {
                 "name": "Leg Press",
-                "day": "Friday",
+                "day": "Monday",
                 "group": "Legs",
                 "mainSets": [
                     {
@@ -230,7 +230,7 @@
             },
             {
                 "name": "Arm Curls",
-                "day": "Saturday",
+                "day": "Monday",
                 "group": "Arms",
                 "mainSets": [
                     {

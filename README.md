@@ -65,6 +65,8 @@ Normal workout logging uses the existing debounced autosave and saves only the a
 
 Open the editor from `☰` -> `Edit Current Profile`.
 
+The title now reads `Editing <profile name>`, with `Editing` shown as smaller supporting text and the profile name as the stronger label.
+
 Exercises are collapsed by default so the editor is easier to scan. Tap an exercise row to expand or collapse its full edit form. Use `Reorder`, or long-press an exercise row, to show `Move Up` / `Move Down` controls. Exercise order saves with the active profile when `Save Changes` is tapped.
 
 The Profile Editor uses the same dark gradient, mobile app shell, rounded cards, and pill-style action controls as the Exercise Pool and main app.
@@ -81,6 +83,8 @@ Editable now:
 - Delete set
 - Delete exercise
 - Reorder exercises
+
+All current profile exercises are treated as Monday/current day for now. The editor includes a `Current Day` selector with Monday through Sunday as placeholder options for future workout-week expansion. Monday is currently the only populated day; choosing another day shows an empty state and does not create full multi-day/week behavior yet.
 
 Editor changes are saved only when `Save Changes` is tapped. The editor save updates both `original` and `current` structure for the active profile. It attempts to preserve notes, difficulty, and set reps/weights that had already been changed from the previous original plan.
 
@@ -127,12 +131,13 @@ Deleting an exercise from a profile does not delete it from the Exercise Pool. D
 - Authentication
 - Automatic cleanup of profile exercises when a pool exercise is deleted
 - Complex template management
+- Full multi-day workout-week behavior
 
 Those controls are intentionally static for now unless already handled by the prototype.
 
 ## Last Thing Done
 
-Matched the Profile Editor to the shared dark app theme, added URL-based editor refresh state, and enabled CSS cache busting on PHP stylesheet links.
+Changed the Profile Editor title to `Editing <name>`, normalized current profile/template exercises to Monday, and added a placeholder Current Day selector for future workout-week expansion.
 
 ## Next Step
 
